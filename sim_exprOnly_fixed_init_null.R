@@ -97,7 +97,7 @@ for (i in beg:end){
 			frequencies_expr[freq] <- integrate(integrand, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
-		if (length(which(frequencies_expr==0))==5) frequencies_expr[length(frequencies_expr)] <- 1
+		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
 		frequencies_expr <- frequencies_expr + epsilon
 		
 		#start precomputing correct initialization of parameters
@@ -135,7 +135,7 @@ for (i in beg:end){
 			frequencies_expr[freq] <- integrate(integrand, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
-		if (length(which(frequencies_expr==0))==5) frequencies_expr[length(frequencies_expr)] <- 1
+		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
 		frequencies_expr <- frequencies_expr + epsilon
 		
 		#start precomputing correct initialization of parameters

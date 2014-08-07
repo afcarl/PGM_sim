@@ -175,7 +175,7 @@ for (i in beg:end){
 			frequencies_expr[freq] <- integrate(integrand_e, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
-		if (length(which(frequencies_expr==0))==length(frequencies_expr)) frequencies_expr[length(frequencies_expr)] <- 1
+		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
 		frequencies_expr <- frequencies_expr + epsilon
 		
 		# gene body
@@ -267,7 +267,7 @@ for (i in beg:end){
 			frequencies_expr[freq] <- integrate(integrand_e, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
-		if (length(which(frequencies_expr==0))==length(frequencies_expr)) frequencies_expr[length(frequencies_expr)] <- 1
+		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
 		frequencies_expr <- frequencies_expr + epsilon
 		
 		# gene body
