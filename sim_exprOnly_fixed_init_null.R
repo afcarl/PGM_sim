@@ -2,6 +2,7 @@ args <- commandArgs(trailingOnly = TRUE)
 beg <- as.numeric(args[1])
 end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
+library(aws)
 epsilon <- 1e-10
 res_expr <- 50
 integrand <- function(x,k) {dpois(k,x)}
@@ -105,7 +106,8 @@ for (i in beg:end){
 		tempFac[current_sample,] <- paste('[1,',res_expr,']((',paste(frequencies_expr,sep="",collapse=","),'))',sep="")
 	}
 	# precompute correct initialization of parameters for AN-only model
-	prior_expr <- apply(expr_an,2,mean)
+	prior_expr <- kernsm(apply(expr_an,2,mean),h=2)
+	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -144,7 +146,8 @@ for (i in beg:end){
 		tempFac[current_sample,] <- paste('[1,',res_expr,']((',paste(frequencies_expr,sep="",collapse=","),'))',sep="")
 	}
 	# precompute correct initialization of parameters for T-only model
-	prior_expr <- apply(expr_t,2,mean)
+	prior_expr <- kernsm(apply(expr_t,2,mean),h=2)
+	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -165,7 +168,8 @@ for (i in beg:end){
 	## Full model developed from here, to obtain likelihoods of Ts and ANs ####
 	# precompute correct initialization of parameters for joint model
 	expr_all <- rbind(expr_t,expr_an)
-	prior_expr <- apply(expr_all,2,mean)
+	prior_expr <- kernsm(apply(expr_all,2,mean),h=2)
+	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -197,7 +201,8 @@ for (i in beg:end){
 		colnames(tempFac_T) <- c("NAME:\tEXPR.likelihood")
 		rownames(tempFac_T) <- Ts
 		eval(parse(text = paste('write.table(', paste('tempFac_T,file = "./',i,'/null/T_model/T_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
-		prior_expr <- apply(expr_all[cur,],2,mean)
+		prior_expr <- kernsm(apply(expr_all[cur,],2,mean),h=2)
+		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
 		string <- paste(prior_expr,collapse=",")
 		expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
 		potentials <- file(paste("./",i,"/null/T_model/factorPotentials.txt",sep=""),"w")
@@ -212,7 +217,8 @@ for (i in beg:end){
 		colnames(tempFac_AN) <- c("NAME:\tEXPR.likelihood")
 		rownames(tempFac_AN) <- ANs
 		eval(parse(text = paste('write.table(', paste('tempFac_AN,file = "./',i,'/null/AN_model/AN_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
-		prior_expr <- apply(expr_all[-cur,],2,mean)
+		prior_expr <- kernsm(apply(expr_all[-cur,],2,mean),h=2)
+		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
 		string <- paste(prior_expr,collapse=",")
 		expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
 		potentials <- file(paste("./",i,"/null/AN_model/factorPotentials.txt",sep=""),"w")
