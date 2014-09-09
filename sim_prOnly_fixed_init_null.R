@@ -2,11 +2,13 @@ args <- commandArgs(trailingOnly = TRUE)
 beg <- as.numeric(args[1])
 end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
-library(aws)
-epsilon <- 1e-10
+
 res_pr <- 50
+smooth = 19
+if (smooth > 0) library(aws)
 
 integrand_m <- function(x,mean) {dnorm(x=mean,mean=x,sd=0.14)}
+
 geo_mean <- function(data) {
 	log_data <- log(data)
 	gm <- exp(mean(log_data[is.finite(log_data)]))
@@ -43,6 +45,9 @@ for (i in beg:end){
 	tempVar <- rbind(tempVar,tempVar)
 	rownames(tempVar) <- c(Ts,ANs)
 	eval(parse(text = paste('write.table(', paste('tempVar,file = "./',i,'/full_model/full_VarData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
+	###########################################################
+	################## calculate epsilon ####################
+	epsilon_pr <- 1/(100*11)/res_pr
 	###########################################################
 	############### binning scheme defined here ###############
 	# promoter
@@ -98,7 +103,8 @@ for (i in beg:end){
 			for (freq in 1:res_pr) {
 				frequencies_pr[freq] <- integrate(integrand_m,lower=breaksPROMOTER[freq],upper=breaksPROMOTER[freq+1],mean=miu)$value
 			}
-			frequencies_pr <- unlist(frequencies_pr)
+			frequencies_pr <- unlist(frequencies_pr) + epsilon_pr
+			frequencies_pr <- frequencies_pr/sum(frequencies_pr)
 			cpg_list_pr[[cpg]] <- frequencies_pr
 		}
 		
@@ -113,8 +119,10 @@ for (i in beg:end){
 		promoter_an[current_sample,] <- apply(matrix(unlist(cpg_list_pr),ncol=res_pr,byrow=TRUE),2,geo_mean)/sum(apply(matrix(unlist(cpg_list_pr),ncol=res_pr,byrow=TRUE),2,geo_mean))
 	}
 	# precompute correct initialization of parameters for AN-only model
-	prior_pr <- kernsm(apply(promoter_an,2,mean),h=2)
-	prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	if (smooth > 0) {
+		prior_pr <- kernsm(apply(promoter_an,2,mean),h=smooth)
+		prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	} else prior_pr <- apply(promoter_an,2,mean)
 	
 	# write potentials file
 	string <- paste(prior_pr,collapse=",")
@@ -144,7 +152,8 @@ for (i in beg:end){
 			for (freq in 1:res_pr) {
 				frequencies_pr[freq] <- integrate(integrand_m,lower=breaksPROMOTER[freq],upper=breaksPROMOTER[freq+1],mean=miu)$value
 			}
-			frequencies_pr <- unlist(frequencies_pr)
+			frequencies_pr <- unlist(frequencies_pr) + epsilon_pr
+			frequencies_pr <- frequencies_pr/sum(frequencies_pr)
 			cpg_list_pr[[cpg]] <- frequencies_pr
 		}
 		
@@ -159,8 +168,10 @@ for (i in beg:end){
 		promoter_t[current_sample,] <- apply(matrix(unlist(cpg_list_pr),ncol=res_pr,byrow=TRUE),2,geo_mean)/sum(apply(matrix(unlist(cpg_list_pr),ncol=res_pr,byrow=TRUE),2,geo_mean))
 	}
 	# precompute correct initialization of parameters for T-only model
-	prior_pr <- kernsm(apply(promoter_t,2,mean),h=2)
-	prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	if (smooth > 0) {
+		prior_pr <- kernsm(apply(promoter_t,2,mean),h=smooth)
+		prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	} else prior_pr <- apply(promoter_t,2,mean)
 	
 	# write potentials file
 	string <- paste(prior_pr,collapse=",")
@@ -183,8 +194,10 @@ for (i in beg:end){
 	# precompute correct initialization of parameters for full model
 	promoter_all <- rbind(promoter_t,promoter_an)
 	
-	prior_pr <- kernsm(apply(promoter_all,2,mean),h=2)
-	prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	if (smooth > 0) {
+		prior_pr <- kernsm(apply(promoter_all,2,mean),h=smooth)
+		prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+	} else prior_pr <- apply(promoter_all,2,mean)
 	
 	# write potentials file
 	string <- paste(prior_pr,collapse=",")
@@ -217,8 +230,10 @@ for (i in beg:end){
 		rownames(tempFac_T) <- Ts
 		eval(parse(text = paste('write.table(', paste('tempFac_T,file = "./',i,'/null/T_model/T_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
 		
-		prior_pr <- kernsm(apply(promoter_all[cur,],2,mean),h=2)
-		prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+		if (smooth > 0) {
+			prior_pr <- kernsm(apply(promoter_all[cur,],2,mean),h=smooth)
+			prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+		} else prior_pr <- apply(promoter_all[cur,],2,mean)
 		
 		string <- paste(prior_pr,collapse=",")
 		promoterPots <- paste("\nNAME:\t\tpot_",c("P.M.prior",promoterVars),"\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_pr,"]((",string,"))\nPC_MAT:\t\t[1,",res_pr,"]((",paste(rep(1,res_pr),collapse=","),"))\n",sep="")
@@ -235,8 +250,10 @@ for (i in beg:end){
 		rownames(tempFac_AN) <- ANs
 		eval(parse(text = paste('write.table(', paste('tempFac_AN,file = "./',i,'/null/AN_model/AN_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
 		
-		prior_pr <- kernsm(apply(promoter_all[-cur,],2,mean),h=2)
-		prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+		if (smooth > 0) {
+			prior_pr <- kernsm(apply(promoter_all[-cur,],2,mean),h=smooth)
+			prior_pr <- prior_pr@yhat/sum(prior_pr@yhat)
+		} else prior_pr <- apply(promoter_all[-cur,],2,mean)
 		
 		string <- paste(prior_pr,collapse=",")
 		promoterPots <- paste("\nNAME:\t\tpot_",c("P.M.prior",promoterVars),"\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_pr,"]((",string,"))\nPC_MAT:\t\t[1,",res_pr,"]((",paste(rep(1,res_pr),collapse=","),"))\n",sep="")
@@ -249,8 +266,8 @@ for (i in beg:end){
 		# Ds calculation
 		Ds[run] <- 2*(sum(allData_full_likelihoods) - (sum(ANs_AN_likelihoods)+sum(Ts_T_likelihoods)))
 	}
-	pval_zscore <- 1-pnorm(D,mean=mean(Ds),sd=sd(Ds))
-	zscore <- (D - mean(Ds)) / sd(Ds)
+	if (D != 0) pval_zscore <- 1-pnorm(D,mean=mean(Ds),sd=sd(Ds)) else pval_zscore <- 1
+	if (sd(Ds) != 0) zscore <- (D - mean(Ds)) / sd(Ds) else zscore <- 0
 	###########################################################################################
 	eval(parse(text=paste('write.table(x=t(c(pval_zscore,D,mean(Ds),sd(Ds),zscore)), col.names=FALSE, row.names=FALSE, append=TRUE, file="./',i,'.result")',sep="")))
 	cat(paste("done ",i," in ", sprintf("%.2f", (proc.time()[3]-ptm)/60)," minutes\n",sep=""))

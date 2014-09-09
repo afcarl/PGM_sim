@@ -2,10 +2,12 @@ args <- commandArgs(trailingOnly = TRUE)
 beg <- as.numeric(args[1])
 end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
-library(aws)
-epsilon <- 1e-10
+
 res_expr <- 50
-integrand <- function(x,k) {dpois(k,x)}
+smooth = 16
+if (smooth > 0) library(aws)
+
+integrand_e <- function(x,k) {dpois(k,x)}
 
 ids <- c("001","002","003","004","005","006","007","008","009","010","011","012","013","014","015","016","017","018","019","020","021","022","023","024","025","026","027","028","029","030","031","032","033","034","035","036","037","038","039","040","041","042","043","044","045","046","047","048","049","050","051","052","053","054","055","056","057","058","059","060","061","062","063","064","065","066","067","068","069","070","071","072","073","074","0100","076","077","078","079","080","081","082","083","084","085","086","087","088","089","090","091","092","093","094","095","096","097","098","099","100")
 ANs <- paste("AN_",ids,sep="")
@@ -35,6 +37,9 @@ for (i in beg:end){
 	tempVar <- rbind(tempVar,tempVar)
 	rownames(tempVar) <- c(Ts,ANs)
 	eval(parse(text = paste('write.table(', paste('tempVar,file = "./',i,'/full_model/full_VarData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
+	###########################################################
+	################## calculate epsilons ####################
+	epsilon_e <- 1/100/res_expr
 	###########################################################
 	############### binning scheme defined here ###############
 	 expression
@@ -95,19 +100,23 @@ for (i in beg:end){
 		lambdas <- breaksEXPRESSION * 10
         frequencies_expr <- rep(0,length(breaksEXPRESSION)-1)
 		for (freq in 1:res_expr) {
-			frequencies_expr[freq] <- integrate(integrand, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
+			frequencies_expr[freq] <- integrate(integrand_e, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
 		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
-		frequencies_expr <- frequencies_expr + epsilon
+		frequencies_expr <- frequencies_expr + epsilon_e
+		frequencies_expr <- frequencies_expr/sum(frequencies_expr)
 		
 		#start precomputing correct initialization of parameters
 		expr_an[current_sample,] <- frequencies_expr
 		tempFac[current_sample,] <- paste('[1,',res_expr,']((',paste(frequencies_expr,sep="",collapse=","),'))',sep="")
 	}
 	# precompute correct initialization of parameters for AN-only model
-	prior_expr <- kernsm(apply(expr_an,2,mean),h=2)
-	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	if (smooth > 0) {
+		prior_expr <- kernsm(apply(expr_an,2,mean),h=smooth)
+		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	} else prior_expr <- apply(expr_an,2,mean)
+	
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -134,11 +143,12 @@ for (i in beg:end){
 		lambdas <- breaksEXPRESSION * 10
 		frequencies_expr <- rep(0,length(breaksEXPRESSION)-1)
 		for (freq in 1:res_expr) {
-			frequencies_expr[freq] <- integrate(integrand, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
+			frequencies_expr[freq] <- integrate(integrand_e, lower = lambdas[freq], upper = lambdas[freq+1], read_count)[1]
 		}
 		frequencies_expr <- unlist(frequencies_expr)
 		if (length(which(frequencies_expr==0))==res_expr) frequencies_expr[length(frequencies_expr)] <- 1
-		frequencies_expr <- frequencies_expr + epsilon
+		frequencies_expr <- frequencies_expr + epsilon_e
+		frequencies_expr <- frequencies_expr/sum(frequencies_expr)
 		
 		#start precomputing correct initialization of parameters
 		expr_t[current_sample,] <- frequencies_expr
@@ -146,8 +156,11 @@ for (i in beg:end){
 		tempFac[current_sample,] <- paste('[1,',res_expr,']((',paste(frequencies_expr,sep="",collapse=","),'))',sep="")
 	}
 	# precompute correct initialization of parameters for T-only model
-	prior_expr <- kernsm(apply(expr_t,2,mean),h=2)
-	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	if (smooth > 0) {
+		prior_expr <- kernsm(apply(expr_t,2,mean),h=smooth)
+		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	} else prior_expr <- apply(expr_t,2,mean)
+	
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -168,8 +181,12 @@ for (i in beg:end){
 	## Full model developed from here, to obtain likelihoods of Ts and ANs ####
 	# precompute correct initialization of parameters for joint model
 	expr_all <- rbind(expr_t,expr_an)
-	prior_expr <- kernsm(apply(expr_all,2,mean),h=2)
-	prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	
+	if (smooth > 0) {
+		prior_expr <- kernsm(apply(expr_all,2,mean),h=smooth)
+		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+	} else prior_expr <- apply(expr_all,2,mean)
+	
 	# write potentials file
 	string <- paste(prior_expr,collapse=",")
 	expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
@@ -201,8 +218,13 @@ for (i in beg:end){
 		colnames(tempFac_T) <- c("NAME:\tEXPR.likelihood")
 		rownames(tempFac_T) <- Ts
 		eval(parse(text = paste('write.table(', paste('tempFac_T,file = "./',i,'/null/T_model/T_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
-		prior_expr <- kernsm(apply(expr_all[cur,],2,mean),h=2)
-		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+		
+		if (smooth > 0) {
+			prior_expr <- kernsm(apply(expr_all[cur,],2,mean),h=smooth)
+			prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+		} else prior_expr <- apply(expr_all[cur,],2,mean)
+		
+		
 		string <- paste(prior_expr,collapse=",")
 		expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
 		potentials <- file(paste("./",i,"/null/T_model/factorPotentials.txt",sep=""),"w")
@@ -217,8 +239,12 @@ for (i in beg:end){
 		colnames(tempFac_AN) <- c("NAME:\tEXPR.likelihood")
 		rownames(tempFac_AN) <- ANs
 		eval(parse(text = paste('write.table(', paste('tempFac_AN,file = "./',i,'/null/AN_model/AN_FacData.tab",row.names=TRUE,col.names=TRUE,quote=FALSE,sep="\t",append=FALSE)', sep = ""))))
-		prior_expr <- kernsm(apply(expr_all[-cur,],2,mean),h=2)
-		prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+		
+		if (smooth > 0) {
+			prior_expr <- kernsm(apply(expr_all[-cur,],2,mean),h=smooth)
+			prior_expr <- prior_expr@yhat/sum(prior_expr@yhat)
+		} else prior_expr <- apply(expr_all[-cur,],2,mean)
+		
 		string <- paste(prior_expr,collapse=",")
 		expr.pots <- paste("\nNAME:\t\tpot_EXPR.likelihood\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\nNAME:\t\tpot_EXPR.prior\nTYPE:\t\trowNorm\nPOT_MAT:\t[1,",res_expr,"]((",string,"))\nPC_MAT:\t\t[1,",res_expr,"]((",paste(rep(1,res_expr),collapse=","),"))\n\n",sep="",collapse="")
 		potentials <- file(paste("./",i,"/null/AN_model/factorPotentials.txt",sep=""),"w")
@@ -230,8 +256,8 @@ for (i in beg:end){
 		# Ds calculation
 		Ds[run] <- 2*(sum(allData_full_likelihoods) - (sum(ANs_AN_likelihoods)+sum(Ts_T_likelihoods)))
 	}
-	pval_zscore <- 1-pnorm(D,mean=mean(Ds),sd=sd(Ds))
-	zscore <- (D - mean(Ds)) / sd(Ds)
+	if (D != 0) pval_zscore <- 1-pnorm(D,mean=mean(Ds),sd=sd(Ds)) else pval_zscore <- 1
+	if (sd(Ds) != 0) zscore <- (D - mean(Ds)) / sd(Ds) else zscore <- 0
 	############################################################################
 	eval(parse(text=paste('write.table(x=t(c(pval_zscore,D,mean(Ds),sd(Ds),zscore)), col.names=FALSE, row.names=FALSE, append=TRUE, file="./',i,'.result")',sep="")))
 	cat(paste("done ",i," in ", sprintf("%.2f", (proc.time()[3]-ptm)/60)," minutes\n",sep=""))
