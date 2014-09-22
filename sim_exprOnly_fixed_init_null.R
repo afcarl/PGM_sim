@@ -4,7 +4,7 @@ end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
 
 res_expr <- 50
-smooth = 16
+smooth = 10/(100/(50*2))
 if (smooth > 0) library(aws)
 
 integrand_e <- function(x,k) {dpois(k,x)}
@@ -42,7 +42,7 @@ for (i in beg:end){
 	epsilon_e <- 1/100/res_expr
 	###########################################################
 	############### binning scheme defined here ###############
-	 expression
+	# expression
 	temp <- c(sim.data[[i]][[1]][,1],sim.data[[i]][[2]][,1])
 	temp <- as.data.frame(temp)
 	colnames(temp) <- "EXPRESSION"

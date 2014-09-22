@@ -7,17 +7,19 @@ res_pr <- 50
 res_gb <- 50
 res_expr <- 50
 
-smooth_expr = 16
-if (smooth_expr > 0) library(aws)
-library(smoothie)
-#smooth_2d <-
-#if (smooth_expr > 0) 
+smooth_expr <- 10
+smooth_meth <- 0
+smooth_2d <- trunc(10/(1100/(2500)))
+
+if (smooth_expr > 0 | smooth_meth > 0) library(aws)
+if (smooth_2d > 0) library(smoothie)
+
 
 integrand_e <- function(x,k) {dpois(k,x)}
 integrand_m <- function(x,mean) {dnorm(x=mean,mean=x,sd=0.14)}
 ncol = length(promoterVars)+length(geneBodyVars)+1
 
-tensor_product <- function(matrix1,matrix2,normalize=c("row","column","no"),smooth_expr=c("cauchy","gauss","minvar")) {
+tensor_product <- function(matrix1,matrix2,normalize=c("row","column","no"),kernel=c("cauchy","gauss","minvar")) {
 	if (is.matrix(matrix1) && is.matrix(matrix2)) result <- matrix(ncol=ncol(matrix1),nrow=ncol(matrix2),data=rep(0,ncol(matrix1)*ncol(matrix2))) else result <- matrix(ncol=length(matrix1),nrow=length(matrix1),data=rep(0,length(matrix1)*length(matrix2)))
 	
 	if (is.matrix(matrix1) && is.matrix(matrix2)) for (i in 1:nrow(matrix1)) {
@@ -25,9 +27,13 @@ tensor_product <- function(matrix1,matrix2,normalize=c("row","column","no"),smoo
 	} else result <- result + matrix(nrow=length(matrix1),ncol=length(matrix2),byrow=TRUE,data=apply(expand.grid(matrix1,matrix2), 1, prod))
 	
 	if (is.matrix(matrix1) && is.matrix(matrix2)) result <- result/nrow(matrix1)
-	if (!is.null(smooth_expr)) result <- kernel2dsmooth(result,kernel.type = smooth_expr[1],sigma=ceiling(ncol(result)*nrow(result)/nrow(matrix1)/10),nx=ncol(matrix2),ny=ncol(matrix1))
+	if (!is.null(kernel) && smooth_2d > 0) result <- kernel2dsmooth(result,kernel.type = kernel[1],sigma=smooth_2d,nx=ncol(matrix2),ny=ncol(matrix1))
 	if (normalize[1] == "row") for (i in 1:nrow(result)) result[i,] <- result[i,]/sum(result[i,]) else if (normalize[1] == "column") for (i in 1:nrow(result)) result[,i] <- result[,i]/sum(result[,i])
 	
+	for (i in 1:nrow(result)) {
+		result[i,] <- kernsm(result[i,],h=smooth_meth)@yhat
+		result[i,] <- result[i,]/sum(result[i,])
+	}
 	return(result)
 }
 
