@@ -4,7 +4,7 @@ end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
 
 res_pr <- 50
-smooth = 10/(1100/(50*2))
+smooth = 10/(1100/(res_pr*2))
 if (smooth > 0) library(aws)
 
 integrand_m <- function(x,mean) {dnorm(x=mean,mean=x,sd=0.14)}

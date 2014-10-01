@@ -4,7 +4,7 @@ end <- as.numeric(args[2])
 load("./essentials_SIM.RData")
 
 res_expr <- 50
-smooth = 10/(100/(50*2))
+smooth = 10/(100/(res_expr*2))
 if (smooth > 0) library(aws)
 
 integrand_e <- function(x,k) {dpois(k,x)}
